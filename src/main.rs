@@ -1,8 +1,14 @@
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::{color::palettes::css::*, math::bounding::*, prelude::*};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((
+            DefaultPlugins,
+            FrameTimeDiagnosticsPlugin::default(),
+            WorldInspectorPlugin::new(),
+        ))
         .init_state::<Test>()
         .add_systems(Startup, setup)
         .add_systems(
