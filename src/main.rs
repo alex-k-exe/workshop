@@ -1,15 +1,10 @@
-use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::{color::palettes::css::*, math::bounding::*, prelude::*};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use enum_iterator::{all, next, Sequence};
 
 fn main() {
     App::new()
-        .add_plugins((
-            DefaultPlugins,
-            FrameTimeDiagnosticsPlugin::default(),
-            WorldInspectorPlugin::new(),
-        ))
-        .init_state::<Test>()
+        .add_plugins((DefaultPlugins,))
+        .init_state::<TestType>()
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -20,11 +15,11 @@ fn main() {
             (
                 render_shapes,
                 (
-                    aabb_intersection_system.run_if(in_state(Test::AabbSweep)),
-                    circle_intersection_system.run_if(in_state(Test::CircleSweep)),
-                    ray_cast_system.run_if(in_state(Test::RayCast)),
-                    aabb_cast_system.run_if(in_state(Test::AabbCast)),
-                    bounding_circle_cast_system.run_if(in_state(Test::CircleCast)),
+                    aabb_intersection_system.run_if(in_state(TestType::AabbSweep)),
+                    circle_intersection_system.run_if(in_state(TestType::CircleSweep)),
+                    ray_cast_system.run_if(in_state(TestType::RayCast)),
+                    aabb_cast_system.run_if(in_state(TestType::AabbCast)),
+                    bounding_circle_cast_system.run_if(in_state(TestType::CircleCast)),
                 ),
                 render_volumes,
             )
@@ -38,15 +33,15 @@ struct Spin;
 
 fn spin(time: Res<Time>, mut query: Query<&mut Transform, With<Spin>>) {
     for mut transform in query.iter_mut() {
-        transform.rotation *= Quat::from_rotation_z(time.delta_seconds() / 5.);
+        transform.rotate_local_z(time.delta_seconds() / 5.);
     }
 }
 
-#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone, Copy)]
-enum Test {
+#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone, Copy, Sequence)]
+enum TestType {
+    #[default]
     AabbSweep,
     CircleSweep,
-    #[default]
     RayCast,
     AabbCast,
     CircleCast,
@@ -54,25 +49,17 @@ enum Test {
 
 fn update_test_state(
     keycode: Res<ButtonInput<KeyCode>>,
-    cur_state: Res<State<Test>>,
-    mut state: ResMut<NextState<Test>>,
+    cur_state: Res<State<TestType>>,
+    mut state: ResMut<NextState<TestType>>,
 ) {
     if !keycode.just_pressed(KeyCode::Space) {
         return;
     }
 
-    use Test::*;
-    let next = match **cur_state {
-        AabbSweep => CircleSweep,
-        CircleSweep => RayCast,
-        RayCast => AabbCast,
-        AabbCast => CircleCast,
-        CircleCast => AabbSweep,
-    };
-    state.set(next);
+    state.set(next(&**cur_state).unwrap_or(TestType::AabbSweep));
 }
 
-fn update_text(mut text: Query<&mut Text>, cur_state: Res<State<Test>>) {
+fn update_text(mut text: Query<&mut Text>, cur_state: Res<State<TestType>>) {
     if !cur_state.is_changed() {
         return;
     }
@@ -82,10 +69,9 @@ fn update_text(mut text: Query<&mut Text>, cur_state: Res<State<Test>>) {
     text.clear();
 
     text.push_str("Intersection test:\n");
-    use Test::*;
-    for &test in &[AabbSweep, CircleSweep, RayCast, AabbCast, CircleCast] {
-        let s = if **cur_state == test { "*" } else { " " };
-        text.push_str(&format!(" {s} {test:?} {s}\n"));
+    for &test in all::<TestType>().collect::<Vec<_>>().iter() {
+        let test_selected = if **cur_state == test { "*" } else { " " };
+        text.push_str(&format!("{test_selected} {test:?} {test_selected}\n"));
     }
     text.push_str("\nPress space to cycle");
 }
