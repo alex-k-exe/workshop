@@ -275,7 +275,7 @@ fn draw_filled_circle(gizmos: &mut Gizmos, position: Vec2, color: Srgba) {
 fn draw_ray(gizmos: &mut Gizmos, ray: &RayCast2d) {
     gizmos.line_2d(
         ray.ray.origin,
-        ray.ray.origin + *ray.ray.direction * ray.max,
+        ray.ray.origin + ray.ray.direction * ray.max,
         WHITE,
     );
     draw_filled_circle(gizmos, ray.ray.origin, FUCHSIA);
@@ -311,7 +311,7 @@ fn ray_cast_system(
         if let Some(toi) = toi {
             draw_filled_circle(
                 &mut gizmos,
-                ray_cast.ray.origin + *ray_cast.ray.direction * toi,
+                ray_cast.ray.origin + ray_cast.ray.direction * toi,
                 LIME,
             );
         }
