@@ -1,9 +1,11 @@
 use nannou::prelude::*;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
     nannou::app(model).run()
 }
-
 struct Model {
     primary_points: [Point2; 3],
     //TODO make secondary_points have fixed length
@@ -11,11 +13,11 @@ struct Model {
     selected_point: i8,
 }
 
-const POINT_WIDTH: f32 = 7.;
+const POINT_WIDTH: f32 = 1.;
 
 fn model(app: &App) -> Model {
     app.new_window()
-        .fullscreen_with(Some(Fullscreen::Borderless(None)))
+        .fullscreen()
         .view(view)
         .mouse_pressed(mouse_pressed)
         .build()
@@ -64,23 +66,19 @@ fn mouse_pressed(app: &App, model: &mut Model, button: MouseButton) {
 
     // if a point is pressed
     if pressed_point < model.primary_points.len() as i8 {
-        // if point pressed is currently selected
-        if model.selected_point == pressed_point {
-            println!("0");
+        if pressed_point == model.selected_point {
             model.selected_point = -1;
         } else {
-            println!("10");
             model.selected_point = pressed_point;
         }
         return;
     }
 
-    if model.selected_point < 0 {
+    if model.selected_point == -1 {
         return;
     }
-    println!("1 {}", model.primary_points[pressed_point as usize]);
-    model.primary_points[pressed_point as usize] = pt2(app.mouse.x, app.mouse.y);
-    println!("2 {}", model.primary_points[pressed_point as usize]);
+
+    model.primary_points[model.selected_point as usize] = pt2(app.mouse.x, app.mouse.y);
     color_secondary_points(model.primary_points, &mut model.secondary_points);
 }
 
@@ -91,7 +89,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
         draw.rect()
             .xy(point.0)
             .wh(vec2(POINT_WIDTH, POINT_WIDTH))
-            .hsv(point.1, 50., 80.);
+            .hsv(point.1, 30., 70.);
     }
 
     let mut index = 0;
@@ -114,6 +112,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
 fn color_secondary_points(primary_points: [Point2; 3], secondary_points: &mut Vec<(Vec2, f32)>) {
     let mut max_distance: f32 = 0.;
+    //TODO parallelism
     for secondary in secondary_points {
         let mut total_distance: f32 = 0.;
         for primary in primary_points {
