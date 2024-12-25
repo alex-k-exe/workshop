@@ -1,8 +1,11 @@
-use projects::tesselation_editor;
+use projects::tesselations::tesselation_editor;
 
+pub mod geometry;
 pub mod projects {
     pub mod digits_to_zero;
-    pub mod tesselation_editor;
+    pub mod tesselations {
+        pub mod tesselation_editor;
+    }
     pub mod three_points;
 }
 
