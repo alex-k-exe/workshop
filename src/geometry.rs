@@ -4,8 +4,8 @@ use nannou::prelude::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Line {
-    point1: Point2,
-    point2: Point2,
+    pub point1: Point2,
+    pub point2: Point2,
 }
 
 #[derive(Debug, PartialEq)]
@@ -80,8 +80,7 @@ pub struct Polygon {
 }
 
 impl Polygon {
-    pub fn new(width: f32, sides: usize) -> Self {
-        let radius = width / 2.;
+    pub fn new(radius: f32, sides: usize) -> Self {
         let points = (0..=360)
             .step_by(360 / sides)
             .map(|i| {
@@ -95,46 +94,51 @@ impl Polygon {
                 pt2(x, y)
             })
             .collect();
-        Polygon { points }
+        let mut polygon = Polygon { points };
+        if sides % 2 == 0 {
+            polygon.rotate(45.)
+        }
+        polygon
     }
 
-    fn translate(&mut self, translation: Vec2) {
+    pub fn translate(&mut self, translation: Vec2) {
         for point in &mut self.points {
             point.x += translation.x;
             point.y += translation.y;
         }
     }
 
-    fn reflect(&mut self, axis: Line) {
+    pub fn reflect(&mut self, axis: Line) {
         for point in &mut self.points {
             *point = axis.reflect_point(*point);
         }
     }
 
-    fn rotate(&mut self, centre: Point2, angle: f32) {
+    pub fn rotate(&mut self, angle: f32) {
+        let centre = centroid(self.points.clone()).expect("Polygon should have points");
+        self.rotate_around_point(centre, angle);
+    }
+
+    pub fn rotate_around_point(&mut self, centre: Point2, angle: f32) {
+        let sin_angle = angle.to_radians().sin();
+        let cos_angle = angle.to_radians().cos();
+
         for point in &mut self.points {
-            let angle_radians = angle.to_radians();
+            let x = (point.x - centre.x) * cos_angle - (point.y - centre.y) * sin_angle + centre.x;
+            let y = (point.x - centre.x) * sin_angle + (point.y - centre.y) * cos_angle + centre.y;
 
-            // Translate point to origin
-            let translated = pt2(point.x - centre.x, point.y - centre.y);
-
-            // Rotate
-            let rotated_x = translated.x * angle_radians.cos() - translated.y * angle_radians.sin();
-            let rotated_y = translated.x * angle_radians.sin() + translated.y * angle_radians.cos();
-
-            // Translate back
-            *point = pt2(rotated_x + centre.x, rotated_y + centre.y);
+            *point = pt2(x, y);
         }
     }
 
-    fn dilate(&mut self, scale: f32) {
+    pub fn dilate(&mut self, scale: f32) {
         self.dilate_from_point(
             scale,
             centroid(self.points.clone()).expect("Polygon should have points"),
         );
     }
 
-    fn dilate_from_point(&mut self, scale: f32, centre: Point2) {
+    pub fn dilate_from_point(&mut self, scale: f32, centre: Point2) {
         for point in &mut self.points {
             let dilated = pt2(point.x - centre.x, point.y - centre.y) * scale;
 

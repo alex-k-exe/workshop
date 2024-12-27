@@ -5,18 +5,18 @@ use petgraph::graph::UnGraph;
 const ORIGINAL_WIDTH: f32 = 100.;
 const ORIGINAL_SIDES: usize = 3;
 
-pub struct Model {
-    graph: UnGraph<Polygon, i32>,
-}
+pub struct Model {}
 
 pub fn model(app: &App) -> Model {
     app.new_window().fullscreen().view(view).build().unwrap();
-    let mut graph = UnGraph::new_undirected();
-    graph.add_node(Polygon::new(ORIGINAL_WIDTH, ORIGINAL_SIDES));
 
-    for i in 0..20 {}
+    let mut polygon = Polygon::new(ORIGINAL_WIDTH, ORIGINAL_SIDES);
 
-    Model { graph }
+    for iteration in 0..5 {
+        for point in 0..(polygon.points.len() - 1) {}
+    }
+
+    Model {}
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
