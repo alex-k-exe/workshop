@@ -26,17 +26,17 @@ impl Line {
         }
     }
 
-    fn gradient(&self) -> f32 {
+    pub fn gradient(&self) -> f32 {
         // m = (y2 - y1) / (x2 - x1)
         (self.point2.y - self.point1.y) / (self.point2.x - self.point1.x)
     }
 
-    fn y_intercept(&self) -> f32 {
+    pub fn y_intercept(&self) -> f32 {
         // y = mx + c, c = y - mx
         self.point1.y - self.gradient() * self.point1.x
     }
 
-    fn intersection(&self, segment: Line) -> LineIntersection {
+    fn intersection_with_line(&self, segment: Line) -> LineIntersection {
         let m = [self.gradient(), segment.gradient()];
         let c = [self.y_intercept(), segment.y_intercept()];
 
@@ -62,7 +62,7 @@ impl Line {
     fn reflect_point(&self, point: Point2) -> Point2 {
         let m = -1. / self.gradient();
         let line = Line::from_point_gradient(point, m);
-        let intersection = self.intersection(line);
+        let intersection = self.intersection_with_line(line);
 
         match intersection {
             LineIntersection::Point(p) => pt2(
@@ -81,24 +81,20 @@ pub struct Polygon {
 
 impl Polygon {
     pub fn new(radius: f32, sides: usize) -> Self {
-        let points = (0..=360)
-            .step_by(360 / sides)
-            .map(|i| {
-                // Convert each degree to radians.
-                let radian = deg_to_rad(i as f32);
+        let points = (0..sides)
+            .map(|side| {
+                let angle = ((180. / sides as f32)
+                    * (1. + (if sides % 2 == 1 { 1. } else { 0. }) + 2. * side as f32))
+                    .to_radians();
                 // Get the sine of the radian to find the x co-ordinate of this point of the circle
                 // and multiply it by the radius.
-                let x = radian.sin() * radius;
+                let x = angle.sin() * radius;
                 // Do the same with cosine to find the y co-ordinate.
-                let y = radian.cos() * radius;
+                let y = angle.cos() * radius;
                 pt2(x, y)
             })
             .collect();
-        let mut polygon = Polygon { points };
-        if sides % 2 == 0 {
-            polygon.rotate(45.)
-        }
-        polygon
+        Polygon { points }
     }
 
     pub fn translate(&mut self, translation: Vec2) {
@@ -119,15 +115,12 @@ impl Polygon {
         self.rotate_around_point(centre, angle);
     }
 
+    /**
+    angle is in radians
+    */
     pub fn rotate_around_point(&mut self, centre: Point2, angle: f32) {
-        let sin_angle = angle.to_radians().sin();
-        let cos_angle = angle.to_radians().cos();
-
         for point in &mut self.points {
-            let x = (point.x - centre.x) * cos_angle - (point.y - centre.y) * sin_angle + centre.x;
-            let y = (point.x - centre.x) * sin_angle + (point.y - centre.y) * cos_angle + centre.y;
-
-            *point = pt2(x, y);
+            rotate_point(point, centre, angle.sin(), angle.cos());
         }
     }
 
@@ -146,4 +139,39 @@ impl Polygon {
             *point = pt2(dilated.x + centre.x, dilated.y + centre.y);
         }
     }
+
+    pub fn point_touches_edge(&self, point: Point2) -> bool {
+        for index in 0..self.points.len() {
+            let line = Line {
+                point1: self.points[index],
+                point2: self.points[(index + 1) % self.points.len()],
+            };
+            if point.y == line.gradient() * point.x + line.y_intercept() {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/**
+Assumes that b is the centre point, angle is in radians
+*/
+pub fn angle_between_points(a: Point2, b: Point2, c: Point2) -> f32 {
+    let ba = a - b;
+    let bc = c - b;
+
+    let dot_product = ba.dot(bc);
+    let magnitude_ba = ba.length();
+    let magnitude_bc = bc.length();
+
+    (dot_product / magnitude_ba / magnitude_bc).acos()
+}
+
+pub fn rotate_point(point: &mut Point2, centre: Point2, sin: f32, cos: f32) {
+    let x = (point.x - centre.x) * cos + (point.y - centre.y) * sin;
+    let y = -(point.x - centre.x) * sin + (point.y - centre.y) * cos;
+
+    point.x = x + centre.x;
+    point.y = y + centre.y;
 }
