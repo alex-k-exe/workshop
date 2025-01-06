@@ -11,5 +11,7 @@ pub mod projects {
 }
 
 fn main() {
-    nannou::app(epicycloids::model).run();
+    nannou::app(epicycloids::model)
+        .update(epicycloids::update)
+        .run();
 }

@@ -1,4 +1,4 @@
-use crate::geometry::{angle_between_points, rotate_point, Line, Polygon};
+use crate::geometry::{angle_between_points, rotate_point, Polygon};
 use geom::bounding_rect;
 use nannou::prelude::*;
 
@@ -19,11 +19,11 @@ pub struct Model {
 pub fn model(app: &App) -> Model {
     app.new_window().view(view).build().unwrap();
 
-    let (fixed, mut rotating, fixed_is_bigger) = initialize_polygons();
+    let (fixed, rotating, fixed_is_bigger) = initialize_polygons();
 
-    let mut rotating_point: (Point2, usize);
-    let mut next_point_fixed: (Point2, usize);
-    let mut next_point_rotating: (Point2, usize);
+    let rotating_point: (Point2, usize);
+    let next_point_fixed: (Point2, usize);
+    let next_point_rotating: (Point2, usize);
 
     if fixed.points.len() % 2 == 0 {
         // if fixed is bigger than rotating
@@ -50,7 +50,10 @@ pub fn model(app: &App) -> Model {
     } else {
         rotating_point = (fixed.points[fixed.points.len() - 1], fixed.points.len() - 1);
         next_point_fixed = (fixed.points[0], 0);
-        next_point_rotating = (fixed.points[fixed.points.len() - 1], fixed.points.len() - 1);
+        next_point_rotating = (
+            rotating.points[rotating.points.len() / 4],
+            rotating.points.len() / 4,
+        );
     }
 
     Model {
@@ -64,6 +67,54 @@ pub fn model(app: &App) -> Model {
     }
 }
 
+pub(crate) fn update(_app: &App, model: &mut Model, _update: Update) {
+    let mut angle = angle_between_points(
+        model.next_point_rotating.0,
+        model.rotating_point.0,
+        model.next_point_fixed.0,
+    );
+
+    if angle > (5.).to_radians() {
+        angle = (5.).to_radians();
+        model
+            .rotating
+            .rotate_around_point(model.rotating_point.0, angle);
+        rotate_point(
+            &mut model.tracing_point,
+            model.rotating_point.0,
+            angle.sin(),
+            angle.cos(),
+        );
+
+        model.next_point_rotating.0 = model.rotating.points[model.next_point_rotating.1];
+        model.traced_path.push(model.tracing_point);
+
+        return;
+    }
+
+    if model.rotating.distance_to_point(model.next_point_fixed.0)
+        < model.fixed.distance_to_point(model.next_point_rotating.0)
+    {
+        model.rotating_point = model.next_point_fixed.clone();
+        (model.next_point_fixed).1 = if (model.next_point_fixed).1 == model.fixed.points.len() - 1 {
+            0
+        } else {
+            (model.next_point_fixed).1 + 1
+        };
+        (model.next_point_fixed).0 = model.fixed.points[(model.next_point_fixed).1];
+        model.next_point_rotating.0 = model.rotating.points[model.next_point_rotating.1];
+    } else {
+        model.rotating_point = model.next_point_rotating.clone();
+        (model.next_point_rotating).1 = if (model.next_point_rotating).1 == 0 {
+            model.rotating.points.len() - 1
+        } else {
+            (model.next_point_rotating).1 - 1
+        };
+        (model.next_point_rotating).0 = model.rotating.points[(model.next_point_rotating).1];
+        model.next_point_fixed.0 = model.fixed.points[model.next_point_fixed.1];
+    }
+}
+
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
     draw.background().color(WHITE);
@@ -74,34 +125,15 @@ fn view(app: &App, model: &Model, frame: Frame) {
     draw.polygon()
         .points(model.rotating.points.clone())
         .color(LIGHTGREEN);
-
-    let line = Line {
-        point1: model.rotating_point.0,
-        point2: model.next_point_fixed.0,
-    };
-    draw.line()
-        .start(vec2(200., line.gradient() * 200. + line.y_intercept()))
-        .end(vec2(-100., line.gradient() * -100. + line.y_intercept()))
-        .weight(1.)
-        .color(RED);
-    draw.ellipse()
-        .xy(model.rotating_point.0)
-        .radius(5.)
-        .color(BLUE);
-    draw.ellipse()
-        .xy(model.next_point_fixed.0)
-        .radius(5.)
-        .color(PURPLE);
-    draw.ellipse()
-        .xy(model.next_point_rotating.0)
-        .radius(5.)
-        .color(ORANGE);
+    if !model.traced_path.is_empty() {
+        draw.polyline().points(model.traced_path.clone()).color(RED);
+    }
 
     draw.to_frame(app, &frame).unwrap();
 }
 
 fn initialize_polygons() -> (Polygon, Polygon, bool) {
-    let fixed = Polygon::new(RADIUS, 6);
+    let fixed = Polygon::new(RADIUS, 3);
     let mut rotating = Polygon::new(RADIUS * 0.5, 3);
     let bounding_boxes = [
         bounding_rect(fixed.points.clone()).expect("Polygon should have points"),
@@ -118,50 +150,4 @@ fn initialize_polygons() -> (Polygon, Polygon, bool) {
         rotating,
         bounding_boxes[0].w() > bounding_boxes[1].w(),
     )
-}
-
-fn rotate_things(
-    rotating: &mut Polygon,
-    rotating_point: &mut (Point2, usize),
-    next_point_fixed: &mut (Point2, usize),
-    next_point_rotating: &mut (Point2, usize),
-    tracing_point: &mut Point2,
-) {
-    let angle = angle_between_points(next_point_rotating.0, rotating_point.0, next_point_fixed.0);
-    rotating.rotate_around_point(rotating_point.0, angle);
-    rotate_point(tracing_point, rotating_point.0, angle.sin(), angle.cos());
-
-    next_point_rotating.0 = rotating.points[next_point_rotating.1];
-}
-
-fn update_points(
-    fixed: &Polygon,
-    rotating: &mut Polygon,
-    rotating_point: &mut (Point2, usize),
-    next_point_fixed: &mut (Point2, usize),
-    next_point_rotating: &mut (Point2, usize),
-) {
-    if rotating.point_touches_edge(next_point_fixed.0) {
-        println!("ajjjjj");
-        *rotating_point = next_point_fixed.clone();
-        (*next_point_fixed).1 = if (*next_point_fixed).1 == fixed.points.len() - 1 {
-            0
-        } else {
-            (*next_point_fixed).1 + 1
-        };
-        (*next_point_fixed).0 = fixed.points[(*next_point_fixed).1];
-        next_point_rotating.0 = rotating.points[next_point_rotating.1];
-    } else if fixed.point_touches_edge(next_point_rotating.0) {
-        println!("020202");
-        *rotating_point = next_point_rotating.clone();
-        (*next_point_rotating).1 = if (*next_point_rotating).1 == 0 {
-            rotating.points.len() - 1
-        } else {
-            (*next_point_rotating).1 - 1
-        };
-        (*next_point_rotating).0 = rotating.points[(*next_point_rotating).1];
-        next_point_fixed.0 = fixed.points[next_point_fixed.1];
-    } else {
-        println!("Oh no!");
-    }
 }

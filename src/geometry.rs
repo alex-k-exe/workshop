@@ -1,4 +1,5 @@
 use core::panic;
+use geo::{ClosestPoint, Coord, LineString};
 use geom::centroid;
 use nannou::prelude::*;
 
@@ -111,7 +112,7 @@ impl Polygon {
     }
 
     pub fn rotate(&mut self, angle: f32) {
-        let centre = centroid(self.points.clone()).expect("Polygon should have points");
+        let centre = centroid(self.points.clone()).expect("Polygon should have vertices");
         self.rotate_around_point(centre, angle);
     }
 
@@ -127,7 +128,7 @@ impl Polygon {
     pub fn dilate(&mut self, scale: f32) {
         self.dilate_from_point(
             scale,
-            centroid(self.points.clone()).expect("Polygon should have points"),
+            centroid(self.points.clone()).expect("Polygon should have vertices"),
         );
     }
 
@@ -140,17 +141,19 @@ impl Polygon {
         }
     }
 
-    pub fn point_touches_edge(&self, point: Point2) -> bool {
-        for index in 0..self.points.len() {
-            let line = Line {
-                point1: self.points[index],
-                point2: self.points[(index + 1) % self.points.len()],
-            };
-            if point.y == line.gradient() * point.x + line.y_intercept() {
-                return true;
-            }
+    pub fn distance_to_point(&self, point: Point2) -> f32 {
+        let points: Vec<Coord<f32>> = self
+            .points
+            .iter()
+            .map(|p| geo::coord! {x: p.x, y: p.y})
+            .collect();
+        let polygon = geo::Polygon::new(LineString::from(points), vec![]);
+        let closest = polygon.closest_point(&geo::point! {x: point.x, y: point.y});
+        match closest {
+            geo::Closest::SinglePoint(p) => pt2(p.x(), p.y()).distance(point),
+            geo::Closest::Intersection(p) => pt2(p.x(), p.y()).distance(point),
+            geo::Closest::Indeterminate => panic!("Unable to determine closest point"),
         }
-        false
     }
 }
 
@@ -164,6 +167,10 @@ pub fn angle_between_points(a: Point2, b: Point2, c: Point2) -> f32 {
     let dot_product = ba.dot(bc);
     let magnitude_ba = ba.length();
     let magnitude_bc = bc.length();
+
+    if dot_product == 0. || magnitude_ba == 0. || magnitude_bc == 0. {
+        return 0.;
+    }
 
     (dot_product / magnitude_ba / magnitude_bc).acos()
 }
