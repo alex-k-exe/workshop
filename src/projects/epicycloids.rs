@@ -1,10 +1,13 @@
 use crate::geometry::{angle_between_points, rotate_point, Polygon};
 use geom::bounding_rect;
 use nannou::prelude::*;
-use nannou_egui::{egui, Egui};
+use nannou_egui::{
+    egui::{self, Ui},
+    Egui,
+};
 use std::cmp::Ordering;
 
-const ROTATING_ANGLE: f32 = 5. * std::f32::consts::PI / 180.0;
+const ROTATING_ANGLE: f32 = 2.5 * std::f32::consts::PI / 180.0;
 
 struct State {
     fixed: Polygon,
@@ -16,7 +19,76 @@ struct State {
     next_point_rotating: (Point2, usize),
     traced_path: Vec<Point2>,
     tracing_point: Point2,
-    // TODO constructor
+    collisions_num: u32,
+}
+
+impl State {
+    fn new(settings: &Settings) -> Self {
+        let fixed = Polygon::new(settings.fixed_radius, settings.fixed_sides);
+        let mut rotating = Polygon::new(settings.rotating_radius, settings.rotating_sides);
+        let bounding_boxes = [
+            bounding_rect(fixed.points.clone()).expect("Polygon should have points"),
+            bounding_rect(rotating.points.clone()).expect("Polygon should have points"),
+        ];
+
+        rotating.translate(vec2(
+            0.,
+            bounding_boxes[0].y.end - bounding_boxes[1].y.start,
+        ));
+
+        let rotating_point;
+        let next_point_fixed;
+        let next_point_rotating;
+
+        if fixed.points.len() % 2 == 0 {
+            // if fixed is bigger than rotating
+            if bounding_boxes[0].w() > bounding_boxes[1].w() {
+                let bottom_right = rotating.points.len() / 4;
+                rotating_point = (rotating.points[bottom_right], bottom_right);
+                next_point_fixed = (fixed.points[0], 0);
+                if bottom_right == 0 {
+                    next_point_rotating = (
+                        rotating.points[rotating.points.len() - 1],
+                        rotating.points.len() - 1,
+                    );
+                } else {
+                    next_point_rotating = (rotating.points[bottom_right - 1], bottom_right - 1);
+                };
+            } else {
+                rotating_point = (fixed.points[0], 0);
+                next_point_fixed = (fixed.points[1], 1);
+                next_point_rotating = (
+                    rotating.points[rotating.points.len() / 4],
+                    rotating.points.len() / 4,
+                );
+            }
+        } else {
+            rotating_point = (fixed.points[fixed.points.len() - 1], fixed.points.len() - 1);
+            next_point_fixed = (fixed.points[0], 0);
+            next_point_rotating = (
+                rotating.points[rotating.points.len() / 4],
+                rotating.points.len() / 4,
+            );
+        }
+
+        let lowest_vertex_rotating = rotating
+            .points
+            .iter()
+            .min_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(Ordering::Equal))
+            .expect("Polygon should have vertices")
+            .clone();
+
+        State {
+            fixed,
+            rotating,
+            rotating_point,
+            next_point_fixed,
+            next_point_rotating,
+            traced_path: vec![],
+            tracing_point: pt2(0., lowest_vertex_rotating.y),
+            collisions_num: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +97,11 @@ struct Settings {
     rotating_radius: f32,
     fixed_sides: usize,
     rotating_sides: usize,
+    /* if collisions_num is -1, animate the rolling from start
+     * otherwise, perform that number of collisions but don't animate anything
+     */
+    collisions_num: i32,
+    paused: bool,
 }
 
 impl Settings {
@@ -34,15 +111,9 @@ impl Settings {
             rotating_radius: 100.,
             fixed_sides: 3,
             rotating_sides: 4,
+            collisions_num: -1,
+            paused: true,
         }
-    }
-
-    fn reset(&mut self) {
-        let default = Settings::new();
-        self.fixed_radius = default.fixed_radius;
-        self.rotating_radius = default.rotating_radius;
-        self.fixed_sides = default.fixed_sides;
-        self.rotating_sides = default.rotating_sides;
     }
 }
 
@@ -54,117 +125,110 @@ pub struct Model {
 }
 
 pub fn model(app: &App) -> Model {
-    let window_id = app.new_window().fullscreen().view(view).build().unwrap();
+    let window_id = app
+        .new_window()
+        .view(view)
+        .raw_event(raw_window_event)
+        .build()
+        .unwrap();
 
     let settings = Settings::new();
-
-    let (fixed, rotating, fixed_is_bigger) = initialize_polygons(&settings);
-
-    let rotating_point: (Point2, usize);
-    let next_point_fixed: (Point2, usize);
-    let next_point_rotating: (Point2, usize);
-
-    if fixed.points.len() % 2 == 0 {
-        // if fixed is bigger than rotating
-        if fixed_is_bigger {
-            let bottom_right = rotating.points.len() / 4;
-            rotating_point = (rotating.points[bottom_right], bottom_right);
-            next_point_fixed = (fixed.points[0], 0);
-            if bottom_right == 0 {
-                next_point_rotating = (
-                    rotating.points[rotating.points.len() - 1],
-                    rotating.points.len() - 1,
-                );
-            } else {
-                next_point_rotating = (rotating.points[bottom_right - 1], bottom_right - 1);
-            };
-        } else {
-            rotating_point = (fixed.points[0], 0);
-            next_point_fixed = (fixed.points[1], 1);
-            next_point_rotating = (
-                rotating.points[rotating.points.len() / 4],
-                rotating.points.len() / 4,
-            );
-        }
-    } else {
-        rotating_point = (fixed.points[fixed.points.len() - 1], fixed.points.len() - 1);
-        next_point_fixed = (fixed.points[0], 0);
-        next_point_rotating = (
-            rotating.points[rotating.points.len() / 4],
-            rotating.points.len() / 4,
-        );
-    }
-
-    let lowest_vertex_rotating = rotating
-        .points
-        .iter()
-        .min_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(Ordering::Equal))
-        .expect("Polygon should have vertices");
+    let state = State::new(&settings);
 
     Model {
-        state: State {
-            fixed,
-            rotating: rotating.clone(),
-            rotating_point,
-            next_point_fixed,
-            next_point_rotating,
-            traced_path: vec![],
-            tracing_point: pt2(0., lowest_vertex_rotating.y),
-        },
+        state,
         settings: settings.clone(),
         unapplied_settings: settings.clone(),
         egui: Egui::from_window(&app.window(window_id).unwrap()),
     }
 }
 
-pub(crate) fn update(_app: &App, model: &mut Model, update: Update) {
-    let state = &mut model.state;
-    let egui = &mut model.egui;
-    let mut unapplied_settings = &mut model.unapplied_settings;
-    let mut settings = &mut model.settings;
+fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
+    // Let egui handle things like keyboard and mouse input.
+    model.egui.handle_raw_event(event);
+}
 
-    egui.set_elapsed_time(update.since_start);
-    let ctx = egui.begin_frame();
+pub(crate) fn update(_app: &App, model: &mut Model, update: Update) {
+    model.egui.set_elapsed_time(update.since_start);
+    let ctx = model.egui.begin_frame();
 
     egui::Window::new("Settings").show(&ctx, |ui| {
-        ui.label("Radius of fixed polygon:");
-        ui.add(egui::Slider::new(
-            &mut unapplied_settings.fixed_radius,
-            (40.)..=(300.),
-        ));
-
-        ui.label("Radius of rotating polygon:");
-        ui.add(egui::Slider::new(
-            &mut unapplied_settings.rotating_radius,
-            (40.)..=(300.),
-        ));
-
-        ui.label("Sides of fixed polygon:");
-        ui.add(egui::Slider::new(
-            &mut unapplied_settings.fixed_sides,
-            3..=10,
-        ));
-
-        ui.label("Sides of rotating polygon:");
-        ui.add(egui::Slider::new(
-            &mut unapplied_settings.rotating_sides,
-            3..=10,
-        ));
-
-        let apply = ui.button("Apply").clicked();
-        let cancel = ui.button("Cancel").clicked();
-        let reset = ui.button("Reset").clicked();
-
-        if apply {
-            settings = unapplied_settings;
-        } else if cancel {
-            unapplied_settings = settings;
-        } else if reset {
-            settings.reset();
-            unapplied_settings.reset();
-        }
+        create_ui(
+            ui,
+            &mut model.state,
+            &mut model.settings,
+            &mut model.unapplied_settings,
+        );
     });
 
+    if model.settings.paused {
+        return;
+    }
+
+    if model.settings.collisions_num > 0 {
+        while (model.state.collisions_num as i32) < model.settings.collisions_num {
+            rotate_things(&mut model.state);
+        }
+    } else {
+        rotate_things(&mut model.state);
+    }
+}
+
+fn create_ui(
+    ui: &mut Ui,
+    state: &mut State,
+    settings: &mut Settings,
+    unapplied_settings: &mut Settings,
+) {
+    ui.label("Radius of fixed polygon:");
+    ui.add(egui::Slider::new(
+        &mut unapplied_settings.fixed_radius,
+        (40.)..=(300.),
+    ));
+
+    ui.label("Radius of rotating polygon:");
+    ui.add(egui::Slider::new(
+        &mut unapplied_settings.rotating_radius,
+        (40.)..=(300.),
+    ));
+
+    ui.label("Sides of fixed polygon:");
+    ui.add(egui::Slider::new(
+        &mut unapplied_settings.fixed_sides,
+        3..=10,
+    ));
+
+    ui.label("Sides of rotating polygon:");
+    ui.add(egui::Slider::new(
+        &mut unapplied_settings.rotating_sides,
+        3..=10,
+    ));
+
+    ui.label("Collisions to do:");
+    ui.add(egui::Slider::new(
+        &mut unapplied_settings.collisions_num,
+        -1..=1000,
+    ));
+
+    let apply = ui.button("Apply changes").clicked();
+    let reset = ui.button("Reset changes").clicked();
+    let toggle_pause = ui
+        .button(if settings.paused { "Resume" } else { "Pause" })
+        .clicked();
+
+    if apply {
+        *settings = unapplied_settings.clone();
+        *state = State::new(settings);
+    } else if reset {
+        *settings = Settings::new();
+        *unapplied_settings = settings.clone();
+        *state = State::new(&settings);
+    } else if toggle_pause {
+        settings.paused = !settings.paused;
+    }
+}
+
+fn rotate_things(state: &mut State) {
     let mut angle = angle_between_points(
         state.next_point_rotating.0,
         state.rotating_point.0,
@@ -189,6 +253,8 @@ pub(crate) fn update(_app: &App, model: &mut Model, update: Update) {
         return;
     }
 
+    state.collisions_num = state.collisions_num + 1;
+
     if state.rotating.distance_to_point(state.next_point_fixed.0)
         < state.fixed.distance_to_point(state.next_point_rotating.0)
     {
@@ -212,11 +278,6 @@ pub(crate) fn update(_app: &App, model: &mut Model, update: Update) {
     }
 }
 
-fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
-    // Let egui handle things like keyboard and mouse input.
-    model.egui.handle_raw_event(event);
-}
-
 fn view(app: &App, model: &Model, frame: Frame) {
     let state = &model.state;
     let draw = app.draw();
@@ -233,24 +294,5 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
 
     draw.to_frame(app, &frame).unwrap();
-}
-
-fn initialize_polygons(settings: &Settings) -> (Polygon, Polygon, bool) {
-    let fixed = Polygon::new(settings.fixed_radius, settings.fixed_sides);
-    let mut rotating = Polygon::new(settings.rotating_radius, settings.rotating_sides);
-    let bounding_boxes = [
-        bounding_rect(fixed.points.clone()).expect("Polygon should have points"),
-        bounding_rect(rotating.points.clone()).expect("Polygon should have points"),
-    ];
-
-    rotating.translate(vec2(
-        0.,
-        bounding_boxes[0].y.end - bounding_boxes[1].y.start,
-    ));
-
-    (
-        fixed,
-        rotating,
-        bounding_boxes[0].w() > bounding_boxes[1].w(),
-    )
+    model.egui.draw_to_frame(&frame).unwrap();
 }
