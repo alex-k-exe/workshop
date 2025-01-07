@@ -1,4 +1,4 @@
-use crate::geometry::{angle_between_points, rotate_point, Polygon};
+use crate::geometry::{angle_between_points, rotate_point, Direction, Polygon, NO_VERTICES_ERROR};
 use geom::bounding_rect;
 use nannou::prelude::*;
 use nannou_egui::{
@@ -26,20 +26,17 @@ impl State {
     fn new(settings: &Settings) -> Self {
         let fixed = Polygon::new(settings.fixed_radius, settings.fixed_sides);
         let mut rotating = Polygon::new(settings.rotating_radius, settings.rotating_sides);
-        let bounding_boxes = [
-            bounding_rect(fixed.points.clone()).expect("Polygon should have points"),
-            bounding_rect(rotating.points.clone()).expect("Polygon should have points"),
-        ];
 
-        rotating.translate(vec2(
-            0.,
-            bounding_boxes[0].y.end - bounding_boxes[1].y.start,
-        ));
+        rotating.align(&fixed, Direction::Above);
 
         let rotating_point;
         let next_point_fixed;
         let next_point_rotating;
 
+        let bounding_boxes = [
+            bounding_rect(fixed.points.clone()).expect("Polygon should have points"),
+            bounding_rect(rotating.points.clone()).expect("Polygon should have points"),
+        ];
         if fixed.points.len() % 2 == 0 {
             // if fixed is bigger than rotating
             if bounding_boxes[0].w() > bounding_boxes[1].w() {
@@ -75,7 +72,7 @@ impl State {
             .points
             .iter()
             .min_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(Ordering::Equal))
-            .expect("Polygon should have vertices")
+            .expect(NO_VERTICES_ERROR)
             .clone();
 
         State {

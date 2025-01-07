@@ -1,4 +1,4 @@
-use projects::epicycloids;
+use projects::tesselations::tesselation_editor;
 
 pub mod geometry;
 pub mod projects {
@@ -6,12 +6,10 @@ pub mod projects {
     pub mod tesselations {
         pub mod tesselation_editor;
     }
-    pub mod epicycloids;
+    // pub mod epicycloids;
     pub mod three_points;
 }
 
 fn main() {
-    nannou::app(epicycloids::model)
-        .update(epicycloids::update)
-        .run();
+    nannou::app(tesselation_editor::model).run();
 }

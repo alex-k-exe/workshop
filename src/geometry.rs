@@ -1,7 +1,9 @@
 use core::panic;
 use geo::{ClosestPoint, Coord, LineString};
-use geom::centroid;
+use geom::{bounding_rect, centroid};
 use nannou::prelude::*;
+
+pub const NO_VERTICES_ERROR: &str = "Polygon should have vertices";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Line {
@@ -75,6 +77,13 @@ impl Line {
     }
 }
 
+pub enum Direction {
+    Above,
+    Right,
+    Below,
+    Left,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Polygon {
     pub points: Vec<Point2>,
@@ -98,6 +107,45 @@ impl Polygon {
         Polygon { points }
     }
 
+    /** Align self to be above, below, or to the right or left of polygon */
+    pub fn align(&mut self, polygon: &Polygon, direction: Direction) {
+        let bounding_boxes = [
+            bounding_rect(self.points.clone()).expect(NO_VERTICES_ERROR),
+            bounding_rect(polygon.points.clone()).expect(NO_VERTICES_ERROR),
+        ];
+
+        match direction {
+            Direction::Above => {
+                self.translate(vec2(
+                    (bounding_boxes[1].x.start + bounding_boxes[1].x.end) / 2.
+                        - (bounding_boxes[0].x.start + bounding_boxes[0].x.end) / 2.,
+                    bounding_boxes[1].y.end - bounding_boxes[0].y.start,
+                ));
+            }
+            Direction::Right => {
+                self.translate(vec2(
+                    bounding_boxes[1].x.end - bounding_boxes[0].x.start,
+                    (bounding_boxes[1].y.start + bounding_boxes[1].y.end) / 2.
+                        - (bounding_boxes[0].y.start + bounding_boxes[0].y.end) / 2.,
+                ));
+            }
+            Direction::Below => {
+                self.translate(vec2(
+                    (bounding_boxes[1].x.start + bounding_boxes[1].x.end) / 2.
+                        - (bounding_boxes[0].x.start + bounding_boxes[0].x.end) / 2.,
+                    bounding_boxes[1].y.start - bounding_boxes[0].y.end,
+                ));
+            }
+            Direction::Left => {
+                self.translate(vec2(
+                    bounding_boxes[1].x.start - bounding_boxes[0].x.end,
+                    (bounding_boxes[1].y.start + bounding_boxes[1].y.end) / 2.
+                        - (bounding_boxes[0].y.start + bounding_boxes[0].y.end) / 2.,
+                ));
+            }
+        }
+    }
+
     pub fn translate(&mut self, translation: Vec2) {
         for point in &mut self.points {
             point.x += translation.x;
@@ -112,7 +160,7 @@ impl Polygon {
     }
 
     pub fn rotate(&mut self, angle: f32) {
-        let centre = centroid(self.points.clone()).expect("Polygon should have vertices");
+        let centre = centroid(self.points.clone()).expect(NO_VERTICES_ERROR);
         self.rotate_around_point(centre, angle);
     }
 
@@ -128,7 +176,7 @@ impl Polygon {
     pub fn dilate(&mut self, scale: f32) {
         self.dilate_from_point(
             scale,
-            centroid(self.points.clone()).expect("Polygon should have vertices"),
+            centroid(self.points.clone()).expect(NO_VERTICES_ERROR),
         );
     }
 
@@ -151,7 +199,7 @@ impl Polygon {
         let closest = polygon.closest_point(&geo::point! {x: point.x, y: point.y});
         match closest {
             geo::Closest::SinglePoint(p) => pt2(p.x(), p.y()).distance(point),
-            geo::Closest::Intersection(p) => pt2(p.x(), p.y()).distance(point),
+            geo::Closest::Intersection(_) => 0.,
             geo::Closest::Indeterminate => panic!("Unable to determine closest point"),
         }
     }
