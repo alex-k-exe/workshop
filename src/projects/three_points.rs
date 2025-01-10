@@ -1,8 +1,5 @@
 use nannou::prelude::*;
 
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 pub struct Model {
     primary_points: [Point2; 3],
     secondary_points: Vec<(Point2, f32)>,
