@@ -24,8 +24,6 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let polygon = model.polygon.clone();
     let bounding_box = bounding_rect(polygon.points.clone()).expect(NO_VERTICES_ERROR);
 
-    draw.polygon().points(polygon.points.clone()).color(RED);
-
     second_align_thing(
         &window,
         &draw,
@@ -34,14 +32,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
         &mut model.polygon.clone(),
         Direction::Right,
     );
-    second_align_thing(
-        &window,
-        &draw,
-        &mut polygon.clone(),
-        &mut bounding_box.clone(),
-        &mut model.polygon.clone(),
-        Direction::Left,
-    );
+    draw.polygon().points(polygon.points.clone()).color(RED);
 
     // put everything on the frame
     draw.to_frame(app, &frame).unwrap();
@@ -55,7 +46,6 @@ fn align_thing(
     i: &mut i32,
     direction: &Direction,
 ) {
-    println!("{:?}", polygon.clone());
     draw.polygon()
         .points(polygon.points.clone())
         .color(if *i % 2 == 0 { LIGHTBLUE } else { LIGHTGREEN });
@@ -74,6 +64,7 @@ fn second_align_thing(
 ) {
     let mut i = 0;
     while bounding_box.overlap(*window).is_some() {
+        // copy polygon upwards
         while bounding_box.y.start < window.y.end {
             let temp = polygon.clone();
             align_thing(

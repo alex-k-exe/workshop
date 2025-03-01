@@ -34,24 +34,21 @@ pub fn model(app: &App) -> Model {
         .view(view)
         .build()
         .unwrap();
-
     let window = app.window_rect();
 
     let mut points: Vec<(Vec2, f32)> = vec![];
-    let shift = window.wh() / 2.;
-    let mut current_point = pt2(window.x.start, window.y.end) + shift;
+    let mut current_point = pt2(window.x.start, window.y.end);
 
-    while current_point.y > window.y.start + shift.y {
+    while current_point.y > window.y.start {
         points.push((current_point, 0.));
 
         if current_point[0] + POINT_WIDTH * 1.5 > window.x.end {
-            current_point[0] = window.x.start + shift.x;
+            current_point[0] = window.x.start;
             current_point[1] -= POINT_WIDTH;
         } else {
             current_point[0] += POINT_WIDTH;
         }
     }
-    println!("{0:?} {1:?}", points[0], points.last().expect("msg"));
 
     color_points(&mut points, &Functions::Power);
     Model {

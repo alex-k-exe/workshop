@@ -159,14 +159,13 @@ impl Polygon {
         }
     }
 
+    /** Rotate clockwise around centroid */
     pub fn rotate(&mut self, angle: f32) {
         let centre = centroid(self.points.clone()).expect(NO_VERTICES_ERROR);
         self.rotate_around_point(centre, angle);
     }
 
-    /**
-    angle is in radians
-    */
+    /** Rotate clockwise, angle is in radians */
     pub fn rotate_around_point(&mut self, centre: Point2, angle: f32) {
         for point in &mut self.points {
             rotate_point(point, centre, angle.sin(), angle.cos());
@@ -223,6 +222,7 @@ pub fn angle_between_points(a: Point2, b: Point2, c: Point2) -> f32 {
     (dot_product / magnitude_ba / magnitude_bc).acos()
 }
 
+/** Rotate a point clockwise around another point */
 pub fn rotate_point(point: &mut Point2, centre: Point2, sin: f32, cos: f32) {
     let x = (point.x - centre.x) * cos + (point.y - centre.y) * sin;
     let y = -(point.x - centre.x) * sin + (point.y - centre.y) * cos;
