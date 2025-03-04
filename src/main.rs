@@ -1,4 +1,4 @@
-use projects::boids;
+use projects::boids::{self, update};
 
 pub mod geometry;
 pub mod projects {
@@ -14,5 +14,5 @@ pub mod projects {
 }
 
 fn main() {
-    nannou::app(boids::model).run();
+    nannou::app(boids::model).update(update).run();
 }

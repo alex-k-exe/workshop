@@ -224,9 +224,15 @@ pub fn angle_between_points(a: Point2, b: Point2, c: Point2) -> f32 {
 
 /** Rotate a point clockwise around another point */
 pub fn rotate_point(point: &mut Point2, centre: Point2, sin: f32, cos: f32) {
-    let x = (point.x - centre.x) * cos + (point.y - centre.y) * sin;
-    let y = -(point.x - centre.x) * sin + (point.y - centre.y) * cos;
+    // Translate the point to the origin (relative to the centre)
+    let translated_x = point.x - centre.x;
+    let translated_y = point.y - centre.y;
 
-    point.x = x + centre.x;
-    point.y = y + centre.y;
+    // Perform the rotation
+    let rotated_x = translated_x * cos - translated_y * sin;
+    let rotated_y = translated_x * sin + translated_y * cos;
+
+    // Translate the point back
+    point.x = rotated_x + centre.x;
+    point.y = rotated_y + centre.y;
 }
