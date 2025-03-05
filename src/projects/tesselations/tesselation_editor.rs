@@ -44,7 +44,7 @@ fn align_thing(
     bounding_box: &mut Rect,
     alignment_polygon: &Polygon,
     i: &mut i32,
-    direction: &Direction,
+    direction: Direction,
 ) {
     draw.polygon()
         .points(polygon.points.clone())
@@ -73,7 +73,7 @@ fn second_align_thing(
                 &mut bounding_box,
                 &temp,
                 &mut i,
-                &Direction::Above,
+                Direction::Above,
             );
         }
         align_thing(
@@ -82,7 +82,7 @@ fn second_align_thing(
             &mut bounding_box,
             &alignment_polygon,
             &mut i,
-            &Direction::Below,
+            Direction::Below,
         );
         while bounding_box.y.end > window.y.start {
             let temp = polygon.clone();
@@ -92,7 +92,7 @@ fn second_align_thing(
                 &mut bounding_box,
                 &temp,
                 &mut i,
-                &Direction::Below,
+                Direction::Below,
             );
         }
         align_thing(
@@ -101,7 +101,7 @@ fn second_align_thing(
             &mut bounding_box,
             &alignment_polygon,
             &mut i,
-            &direction,
+            direction,
         );
         *alignment_polygon = polygon.clone();
     }

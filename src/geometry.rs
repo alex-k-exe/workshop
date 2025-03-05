@@ -5,7 +5,7 @@ use nannou::prelude::*;
 
 pub const NO_VERTICES_ERROR: &str = "Polygon should have vertices";
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Line {
     pub point1: Point2,
     pub point2: Point2,
@@ -77,6 +77,7 @@ impl Line {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     Above,
     Right,
@@ -108,7 +109,7 @@ impl Polygon {
     }
 
     /** Align self to be above, below, or to the right or left of polygon */
-    pub fn align(&mut self, polygon: &Polygon, direction: &Direction) {
+    pub fn align(&mut self, polygon: &Polygon, direction: Direction) {
         let bounding_boxes = [
             bounding_rect(self.points.clone()).expect(NO_VERTICES_ERROR),
             bounding_rect(polygon.points.clone()).expect(NO_VERTICES_ERROR),

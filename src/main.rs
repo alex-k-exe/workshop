@@ -8,11 +8,10 @@ pub mod projects {
     }
     // pub mod epicycloids;
     // pub mod distance_between_points;
-    // pub mod epicycloids;
     pub mod boids;
     pub mod three_points;
 }
 
 fn main() {
-    nannou::app(boids::model).update(update).run();
+    nannou::app(boids::Model::new).update(update).run();
 }
