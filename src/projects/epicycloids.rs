@@ -7,7 +7,7 @@ use nannou_egui::{
 };
 use std::cmp::Ordering;
 
-const ROTATING_ANGLE: f32 = 2.5 * std::f32::consts::PI / 180.0;
+const ROTATING_ANGLE: f32 = 0.5 * PI / 180.0;
 
 struct State {
     fixed: Polygon,
@@ -27,7 +27,7 @@ impl State {
         let fixed = Polygon::new(settings.fixed_radius, settings.fixed_sides);
         let mut rotating = Polygon::new(settings.rotating_radius, settings.rotating_sides);
 
-        rotating.align(&fixed, Direction::Left);
+        rotating.align(&fixed, Direction::Above);
 
         let rotating_point;
         let next_point_fixed;
@@ -98,7 +98,7 @@ struct Settings {
      * otherwise, perform that number of collisions but don't animate anything
      */
     collisions_num: i32,
-    paused: bool,
+    speed: u32,
 }
 
 impl Settings {
@@ -109,7 +109,7 @@ impl Settings {
             fixed_sides: 3,
             rotating_sides: 4,
             collisions_num: -1,
-            paused: true,
+            speed: 4,
         }
     }
 }
@@ -121,22 +121,24 @@ pub struct Model {
     egui: Egui,
 }
 
-pub fn model(app: &App) -> Model {
-    let window_id = app
-        .new_window()
-        .view(view)
-        .raw_event(raw_window_event)
-        .build()
-        .unwrap();
+impl Model {
+    pub fn new(app: &App) -> Self {
+        let window_id = app
+            .new_window()
+            .view(view)
+            .raw_event(raw_window_event)
+            .build()
+            .unwrap();
 
-    let settings = Settings::new();
-    let state = State::new(&settings);
+        let settings = Settings::new();
+        let state = State::new(&settings);
 
-    Model {
-        state,
-        settings: settings.clone(),
-        unapplied_settings: settings.clone(),
-        egui: Egui::from_window(&app.window(window_id).unwrap()),
+        Model {
+            state,
+            settings: settings.clone(),
+            unapplied_settings: settings.clone(),
+            egui: Egui::from_window(&app.window(window_id).unwrap()),
+        }
     }
 }
 
@@ -145,7 +147,7 @@ fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event:
     model.egui.handle_raw_event(event);
 }
 
-pub(crate) fn update(_app: &App, model: &mut Model, update: Update) {
+pub fn update(_app: &App, model: &mut Model, update: Update) {
     model.egui.set_elapsed_time(update.since_start);
     let ctx = model.egui.begin_frame();
 
@@ -158,16 +160,14 @@ pub(crate) fn update(_app: &App, model: &mut Model, update: Update) {
         );
     });
 
-    if model.settings.paused {
-        return;
-    }
-
     if model.settings.collisions_num > 0 {
         while (model.state.collisions_num as i32) < model.settings.collisions_num {
             rotate_things(&mut model.state);
         }
     } else {
-        rotate_things(&mut model.state);
+        for _ in 0..model.settings.speed {
+            rotate_things(&mut model.state);
+        }
     }
 }
 
@@ -207,11 +207,11 @@ fn create_ui(
         -1..=1000,
     ));
 
+    ui.label("Speed:");
+    ui.add(egui::Slider::new(&mut unapplied_settings.speed, 1..=10));
+
     let apply = ui.button("Apply changes").clicked();
     let reset = ui.button("Reset changes").clicked();
-    let toggle_pause = ui
-        .button(if settings.paused { "Resume" } else { "Pause" })
-        .clicked();
 
     if apply {
         *settings = unapplied_settings.clone();
@@ -220,8 +220,6 @@ fn create_ui(
         *settings = Settings::new();
         *unapplied_settings = settings.clone();
         *state = State::new(&settings);
-    } else if toggle_pause {
-        settings.paused = !settings.paused;
     }
 }
 
@@ -233,7 +231,7 @@ fn rotate_things(state: &mut State) {
     );
 
     if angle > ROTATING_ANGLE {
-        angle = ROTATING_ANGLE;
+        angle = 2. * PI - ROTATING_ANGLE;
         state
             .rotating
             .rotate_around_point(state.rotating_point.0, angle);

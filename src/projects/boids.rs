@@ -5,7 +5,7 @@ use nannou_egui::{
     Egui,
 };
 
-const MAX_SPEED: f32 = 5.;
+const MAX_SPEED: f32 = 15.;
 
 pub struct Model {
     boids: Vec<Boid>,
@@ -33,19 +33,17 @@ impl Model {
     }
 
     fn new_boids(window: &Rect) -> Vec<Boid> {
-        (0..3).map(|_| Boid::new_random(window)).collect()
+        (0..10).map(|_| Boid::new_random(window)).collect()
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Settings {
     visual_range: f32,
-
     containment: f32,
     cohesion: f32,
     separation: f32,
     alignment: f32,
-
     paused: bool,
 }
 
@@ -53,16 +51,16 @@ impl Settings {
     fn new() -> Self {
         Settings {
             visual_range: 100.,
-            containment: 1.,
-            cohesion: 0.5,
-            separation: 0.5,
-            alignment: 0.5,
-            paused: false,
+            containment: 5.,
+            cohesion: 1.,
+            separation: 1.,
+            alignment: 1.,
+            paused: true,
         }
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct Boid {
     position: Point2,
     velocity: Vec2,
@@ -93,19 +91,19 @@ fn create_ui(
     ui: &mut Ui,
     window: &Rect,
     boids: &mut Vec<Boid>,
-    mut settings: Settings,
-    mut unapplied_settings: Settings,
+    settings: &mut Settings,
+    unapplied_settings: &mut Settings,
 ) {
     ui.label("Visual range of boids:");
     ui.add(egui::Slider::new(
         &mut unapplied_settings.visual_range,
-        (10.)..=(1000.),
+        (10.)..=(500.),
     ));
 
     ui.label("Containment factor:");
     ui.add(egui::Slider::new(
         &mut unapplied_settings.containment,
-        0.1..=10.,
+        0.1..=20.,
     ));
 
     ui.label("Cohesion factor:");
@@ -133,12 +131,12 @@ fn create_ui(
         .clicked();
 
     if apply {
-        settings = unapplied_settings;
+        *settings = *unapplied_settings;
         *boids = Model::new_boids(window);
     } else if reset {
-        settings = Settings::new();
-        unapplied_settings = settings;
+        *settings = Settings::new();
         *boids = Model::new_boids(window);
+        *unapplied_settings = *settings;
     } else if toggle_pause {
         settings.paused = !settings.paused;
     }
@@ -153,8 +151,8 @@ pub fn update(app: &App, model: &mut Model, update: Update) {
             ui,
             &app.window_rect(),
             &mut model.boids,
-            model.settings,
-            model.unapplied_settings,
+            &mut model.settings,
+            &mut model.unapplied_settings,
         );
     });
 
@@ -210,6 +208,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     // put everything on the frame
     draw.to_frame(app, &frame).unwrap();
+    model.egui.draw_to_frame(&frame).unwrap();
 }
 
 fn containment(boid: &mut Boid, window: Rect, factor: f32) {
@@ -227,18 +226,20 @@ fn containment(boid: &mut Boid, window: Rect, factor: f32) {
     }
 }
 
-/** Find the center of mass of the other boids and adjust velocity slightly to point towards the
-center of mass. */
+/** Find the center of mass of the other boids and adjust velocity slightly to point towards the center of mass. */
 fn cohesion(boid: &mut Boid, boids: &Vec<Boid>, settings: Settings) {
-    // adjust velocity by this %
     let mut center_position = pt2(0., 0.);
     let mut num_neighbors = 0;
 
     for other_boid in boids {
-        if boid.position.distance(other_boid.position) < settings.visual_range {
-            center_position += other_boid.position;
-            num_neighbors += 1;
+        if boid == other_boid {
+            continue;
         }
+        if boid.position.distance(other_boid.position) > settings.visual_range {
+            continue;
+        }
+        center_position += other_boid.position;
+        num_neighbors += 1;
     }
 
     if num_neighbors == 0 {
@@ -250,20 +251,20 @@ fn cohesion(boid: &mut Boid, boids: &Vec<Boid>, settings: Settings) {
 
 /** Move away from other boids that are too close to avoid colliding */
 fn separation(boid: &mut Boid, boids: &Vec<Boid>, factor: f32) {
-    let min_distance = 20.; // The distance to stay away from other boids
+    let min_distance = 20.;
 
-    let mut move_boid = vec2(0., 0.);
+    let mut steer = vec2(0., 0.);
     for other_boid in boids {
-        if other_boid.position == boid.position && other_boid.velocity == boid.velocity {
+        if boid == other_boid {
             continue;
         }
-        if boid.position.distance(other_boid.position) < min_distance {
-            continue;
+        if boid.position.distance(other_boid.position) > min_distance {
+            continue; // if boid and other_boid are far enough apart
         }
-        move_boid += boid.position - other_boid.position;
+        steer -= other_boid.position - boid.position;
     }
 
-    boid.velocity += move_boid * factor;
+    boid.velocity += steer * factor;
 }
 
 // Find the average velocity (speed and direction) of the other boids and
@@ -273,10 +274,14 @@ fn alignment(boid: &mut Boid, boids: &Vec<Boid>, settings: Settings) {
     let mut num_neighbours = 0;
 
     for other_boid in boids {
-        if boid.position.distance(other_boid.position) < settings.visual_range {
-            avg_velocity += other_boid.velocity;
-            num_neighbours += 1;
+        if boid == other_boid {
+            continue;
         }
+        if boid.position.distance(other_boid.position) > settings.visual_range {
+            continue;
+        }
+        avg_velocity += other_boid.velocity;
+        num_neighbours += 1;
     }
 
     if num_neighbours == 0 {
