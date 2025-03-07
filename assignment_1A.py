@@ -86,34 +86,80 @@ if not isinstance(student_name, str):
 
 # All of your code goes in, or is called from, this function.
 
+import re
+
 def title_length(booklist: str):
+	"""
+	Takes the “booklist” and returns the average length (in number of words) of the book titles.
+	"""
+	# (?:\d\.\s) - matches (but doesn't capture) a number, ".", and whitespace
+	# ([a-zA-Z\s]+) - captures the title (but not the subtitle)
+	titles = re.findall(r'(?:\d\.\s)([a-zA-Z\s]+)', booklist)
 	total_words = 0
 
-	for book in booklist.split(';'):
-		words = book.title.split(' ')
-		total_words += words.__len__
+	for title in titles:
+		total_words += title.split(" ").__len__()
 
-	return total_words / booklist.__len__
+	if titles.__len__() == 0:
+		return 0
+	else:
+		return total_words / titles.__len__()
 
-def search_word(booklist: list[Book], word: str):
+def search_word(booklist: str, word: str):
+	"""
+	Takes the “booklist” and a “word”, and returns the titles of all the books containing the word in their subtitle, separated by “;”.
+	Assuming that the word can appear within other words
+	"""
+	# (?:\d\.\s) - matches (but doesn't capture) a number, ".", and whitespace
+	# ([a-zA-Z\s:]+) - captures the title and subtitle
+	books: list[str] = re.findall(r'(?:\d\.\s)([a-zA-Z\s:]+)', booklist)
+
 	result = ""
-	for (i, book) in enumerate(booklist):
-		if book.subtitle.__contains__(word):
-			result += book.title
-		if i < booklist.len - 1:
-			result += ";"
-	return result
+	for book in books:
+		separated = book.split(': ')
+		if separated[1].__contains__(word):
+			result += separated[0] + ";"
 
-def word_occurences(booklist: list[Book], word: str):
-	count = 0
-	for book in booklist:
-		count += (book.title + " " + book.subtitle).count(word)
-	return count
+	return result[:result.__len__() - 1]
+
+def word_occurences(booklist: str, word: str):
+	"""
+	Takes the “booklist” and a “word”, and returns the number of times the word appears in the booklist.
+	Assuming that the word can appear within other words
+	"""
+	return booklist.count(word)
 
 # Within the interact function, as per the examples below. Write the python code to ask a user to enter the text, then ask them which action they want to perform. If the text initially entered by the user is less than 50 characters long, they should be prompted to enter a longer text. If they want to search for a word or count its occurrences, then prompt them to enter a word, then call the appropriate function and print the outcome.
 
 def interact():
-	print("Please enter a text that is atleast 50 characters long")
+	booklist = ""
+	while True:
+		booklist = input("Please enter your booklist:")
+		if booklist.__len__() < 50:
+			print("Your booklist is too short, please enter at least 50 characters")
+		else:
+			break
+
+	print("Choose an action:\n" + "1. Get average title length\n" + "2. Search for a word in subtitles\n" + "3. Count word occurrences in titles and subtitles")
+
+	action: int = 0
+	while True:
+		try:
+			action = int(input("Enter your choice (1-3):"))
+		except ValueError:
+			continue
+
+		if action > 0 and action < 4:
+			break
+
+	if action == 1:
+		print("Average title length: ", title_length(booklist))
+	elif action == 2:
+		word = input("Enter a word to search: ")
+		print("Matching titles: ", search_word(booklist, word))
+	else:
+		word = input("Enter a word to count occurrences: ")
+		print("Word occurrences: ", word_occurences(booklist, word))
 
 
 #-----Main Program to Run Student's Solution-------------------------#
