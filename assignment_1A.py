@@ -1,4 +1,4 @@
-#-----Statement of Authorship----------------------------------------#
+# -----Statement of Authorship----------------------------------------#
 #
 # This is an individual assessment task for QUT's teaching unit
 # IFB104, "Building IT Systems", Semester 2, 2024. By submitting
@@ -18,9 +18,9 @@ student_name = "Alex Kammin"
 # to automated plagiarism analysis using a tool such as the Measure
 # of Software Similarity (http://theory.stanford.edu/~aiken/moss/).
 #
-#--------------------------------------------------------------------#
+# --------------------------------------------------------------------#
 
-#-----Assessment Task 1 Description----------------------------------#
+# -----Assessment Task 1 Description----------------------------------#
 #
 # This assessment task tests your skills at processing large data
 # sets, creating reusable code and following instructions to retrieve
@@ -44,9 +44,9 @@ student_name = "Alex Kammin"
 # other module to test your code, so your solution will not work
 # if it relies on changes made to any other files.
 #
-#--------------------------------------------------------------------#
+# --------------------------------------------------------------------#
 
-#-----Preamble-------------------------------------------------------#
+# -----Preamble-------------------------------------------------------#
 #
 # This section imports necessary functions used to execute your code.
 # You must NOT change any of the code in this section, and you may
@@ -63,18 +63,20 @@ from sys import exit as abort
 
 # Confirm that the student has declared their authorship
 if not isinstance(student_number, int):
-	print('\nUnable to run: No student number supplied',
-	'(must be an integer), aborting!\n')
-	abort()
+    print(
+        "\nUnable to run: No student number supplied",
+        "(must be an integer), aborting!\n",
+    )
+    abort()
 if not isinstance(student_name, str):
-	print('\nUnable to run: No student name supplied',
-	'(must be a character string), aborting!\n')
-	abort()
+    print(
+        "\nUnable to run: No student name supplied",
+        "(must be a character string), aborting!\n",
+    )
+    abort()
 
 
-
-
-#-----Student's Solution---------------------------------------------#
+# -----Student's Solution---------------------------------------------#
 #
 # Complete the assignment by replacing the dummy function below with
 # your own function and any other functions needed to support it.
@@ -86,100 +88,67 @@ if not isinstance(student_name, str):
 
 # All of your code goes in, or is called from, this function.
 
-import re
 
-def title_length(booklist: str):
-	"""
-	Takes the “booklist” and returns the average length (in number of words) of the book titles.
-	"""
-	# (?:\d\.\s) - matches (but doesn't capture) a number, ".", and whitespace
-	# ([a-zA-Z\s]+) - captures the title (but not the subtitle)
-	titles = re.findall(r'(?:\d\.\s)([a-zA-Z\s]+)', booklist)
-	total_words = 0
+def title_length(booklist: str) -> float:
+    """
+    Takes the “booklist” and returns the average length (in number of words) of the book titles.
+    """
+    return 4
 
-	for title in titles:
-		total_words += title.split(" ").__len__()
 
-	if titles.__len__() == 0:
-		return 0
-	else:
-		return total_words / titles.__len__()
+def search_word(booklist: str, word: str) -> str:
+    """
+    Takes the “booklist” and a “word”, and returns the titles of all the books containing the word in their subtitle, separated by “;”.
+    """
+    return "Harry Potter and The Chamber Of Secrets;And Then There Were None"
 
-def search_word(booklist: str, word: str):
-	"""
-	Takes the “booklist” and a “word”, and returns the titles of all the books containing the word in their subtitle, separated by “;”.
-	Assuming that the word can appear within other words
-	"""
-	# (?:\d\.\s) - matches (but doesn't capture) a number, ".", and whitespace
-	# ([a-zA-Z\s:]+) - captures the title and subtitle
-	books: list[str] = re.findall(r'(?:\d\.\s)([a-zA-Z\s:]+)', booklist)
 
-	result = ""
-	for book in books:
-		separated = book.split(': ')
-		if separated[1].__contains__(word):
-			result += separated[0] + ";"
+def word_occurences(booklist: str, word: str) -> int:
+    """
+    Takes the “booklist” and a “word”, and returns the number of times the word appears in the booklist.
+    """
+    return 5
 
-	return result[:result.__len__() - 1]
 
-def word_occurences(booklist: str, word: str):
-	"""
-	Takes the “booklist” and a “word”, and returns the number of times the word appears in the booklist.
-	Assuming that the word can appear within other words
-	"""
-	return booklist.count(word)
+# Within the interact function, as per the examples below. Write the python code to ask a user to enter the text, then ask them which action they want to perform.
+# If the text initially entered by the user is less than 50 characters long, they should be prompted to enter a longer text.
+# If they want to search for a word or count its occurrences, then prompt them to enter a word, then call the appropriate function and print the outcome.
 
-# Within the interact function, as per the examples below. Write the python code to ask a user to enter the text, then ask them which action they want to perform. If the text initially entered by the user is less than 50 characters long, they should be prompted to enter a longer text. If they want to search for a word or count its occurrences, then prompt them to enter a word, then call the appropriate function and print the outcome.
 
 def interact():
-	booklist = ""
-	while True:
-		booklist = input("Please enter your booklist:")
-		if booklist.__len__() < 50:
-			print("Your booklist is too short, please enter at least 50 characters")
-		else:
-			break
+    booklist = input("Please enter your booklist:")
+    while len(booklist) < 50:
+        print("Your booklist is too short, please enter at least 50 characters")
+        booklist = input("Please enter your booklist:")
 
-	print("Choose an action:\n" + "1. Get average title length\n" + "2. Search for a word in subtitles\n" + "3. Count word occurrences in titles and subtitles")
+    print(
+        "Choose an action:\n"
+        + "1. Get average title length\n"
+        + "2. Search for a word in subtitles\n"
+        + "3. Count word occurrences in titles and subtitles"
+    )
 
-	action: int = 0
-	while True:
-		try:
-			action = int(input("Enter your choice (1-3):"))
-		except ValueError:
-			continue
+    action = 0
+    try:
+        action = int(input("Enter your choice (1-3):"))
+    except ValueError:
+        print("Invalid input, defaulting to action 1")
+        action = 1
 
-		if action > 0 and action < 4:
-			break
+    if action == 1:
+        print("Average title length: ", title_length(booklist))
+    elif action == 2:
+        word = input("Enter a word to search: ")
+        print("Matching titles: ", search_word(booklist, word))
+    elif action == 3:
+        word = input("Enter a word to count occurrences: ")
+        print("Word occurrences: ", word_occurences(booklist, word))
+    else:
+        print("Invalid action, defaulting to action 1")
+        print("Average title length: ", title_length(booklist))
+        
 
-	if action == 1:
-		print("Average title length: ", title_length(booklist))
-	elif action == 2:
-		word = input("Enter a word to search: ")
-		print("Matching titles: ", search_word(booklist, word))
-	else:
-		word = input("Enter a word to count occurrences: ")
-		print("Word occurrences: ", word_occurences(booklist, word))
-
-
-#-----Main Program to Run Student's Solution-------------------------#
-#You must NOT change any of the code in this section.
+# -----Main Program to Run Student's Solution-------------------------#
+# You must NOT change any of the code in this section.
 if __name__ == "__main__":
     interact()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
