@@ -44,15 +44,11 @@ impl Line {
         let c = [self.y_intercept(), segment.y_intercept()];
 
         // Check if parallel
-        if m[0] == m[1] {
-            // Check if the intercepts are the same
-            if c[0] == c[1] {
-                return LineIntersection::Coincident;
-            } else {
-                return LineIntersection::Parallel;
-            }
-        } else if c[0] == c[1] {
-            return LineIntersection::Point(pt2(0., c[0]));
+        match (m[0] == m[1], c[0] == c[1]) {
+            (true, true) => return LineIntersection::Coincident,
+            (true, false) => return LineIntersection::Parallel,
+            (false, true) => return LineIntersection::Point(pt2(0., c[0])),
+            (false, false) => {}
         }
 
         // Find intersection
