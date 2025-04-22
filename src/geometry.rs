@@ -2,6 +2,7 @@ use core::panic;
 use geo::{ClosestPoint, Coord, LineString};
 use geom::{bounding_rect, centroid};
 use nannou::prelude::*;
+use std::ops::{Add, Mul, Sub};
 
 pub const NO_VERTICES_ERROR: &str = "Polygon should have vertices";
 
@@ -232,4 +233,50 @@ pub fn rotate_point(point: &mut Point2, centre: Point2, sin: f32, cos: f32) {
     // Translate the point back
     point.x = rotated_x + centre.x;
     point.y = rotated_y + centre.y;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PointU32 {
+    pub x: u32,
+    pub y: u32,
+}
+
+impl PointU32 {
+    pub fn new(x: u32, y: u32) -> Self {
+        PointU32 { x, y }
+    }
+
+    pub fn to_i32(&self) -> [i32; 2] {
+        [self.x as i32, self.y as i32]
+    }
+}
+
+impl Add<u32> for PointU32 {
+    type Output = Self;
+    fn add(self, n: u32) -> PointU32 {
+        PointU32 {
+            x: self.x + n,
+            y: self.y + n,
+        }
+    }
+}
+
+impl Sub<u32> for PointU32 {
+    type Output = Self;
+    fn sub(self, n: u32) -> PointU32 {
+        PointU32 {
+            x: self.x - n,
+            y: self.y - n,
+        }
+    }
+}
+
+impl Mul<u32> for PointU32 {
+    type Output = Self;
+    fn mul(self, n: u32) -> PointU32 {
+        PointU32 {
+            x: self.x * n,
+            y: self.y * n,
+        }
+    }
 }

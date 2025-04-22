@@ -1,5 +1,10 @@
-use nannou::{image::RgbaImage, prelude::*, wgpu::Texture};
-use rayon::prelude::*;
+use nannou::{
+    image::{DynamicImage, GenericImageView, RgbaImage},
+    prelude::*,
+    wgpu::Texture,
+};
+
+use crate::geometry::PointU32;
 
 const IMAGE_NAME: &str = "ms_casey.jpg";
 // assuming this is a power of 2
@@ -11,10 +16,41 @@ struct Tile {
     column: u32,
 }
 
+impl Tile {
+    fn center_coords(&self, tile_width: u32) -> PointU32 {
+        PointU32::new(self.row, self.column) * tile_width + tile_width / 2
+    }
+
+    /** Find the tile that should be translated into the position of the tile given through the parameters */
+    fn source_tile(&self) -> Tile {
+        match (self.row % 2 == 0, self.column % 2 == 0) {
+            // top left
+            (true, true) => Tile {
+                row: self.row + 1,
+                column: self.column,
+            },
+            // top right
+            (true, false) => Tile {
+                row: self.row,
+                column: self.column - 1,
+            },
+            // bottom left
+            (false, true) => Tile {
+                row: self.row,
+                column: self.column + 1,
+            },
+            // bottom right
+            (false, false) => Tile {
+                row: self.row - 1,
+                column: self.column,
+            },
+        }
+    }
+}
+
 pub struct Model {
-    texture: Texture,
+    image: Texture,
     recursion_layers: u32,
-    tiles: Vec<(Rect, Vec2)>,
 }
 
 impl Model {
@@ -29,70 +65,18 @@ impl Model {
 
         let assets = app.assets_path().unwrap();
         let img_path = assets.join(IMAGE_NAME);
-        let texture = wgpu::Texture::from_path(app, img_path).unwrap();
-
-        let recursion_layers = 3;
 
         Model {
-            texture,
-            recursion_layers,
-            tiles: process_tiles(recursion_layers),
+            image: Texture::from_path(app, img_path).expect("Image should exist"),
+            recursion_layers: 1,
         }
     }
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
-
-    if model.recursion_layers < 2 {
-        draw.texture(&model.texture);
-        draw.to_frame(app, &frame).unwrap();
-        return;
-    }
-
-    let rows = (2 as u32).pow(model.recursion_layers - 1);
-    let normalised_tile_width = 1.0 / rows as f32;
-    let tile_width = normalised_tile_width * IMAGE_WIDTH as f32;
-    let texture = &model.texture;
-    // Draw sequentially on the main thread
-    for (area, destination_tile) in &model.tiles {
-        draw.texture(texture)
-            .area(*area)
-            .xy(*destination_tile)
-            .w_h(tile_width, tile_width);
-    }
-
+    draw.texture(&model.image);
     draw.to_frame(app, &frame).unwrap();
-}
-
-fn relative_tile_position(row: u32, column: u32, tile_width: f32) -> Point2 {
-    pt2(row as f32, column as f32) * tile_width + tile_width / 2.
-}
-
-/** Find the tile that should be translated into the position of the tile given through the parameters */
-fn source_tile(row: u32, column: u32) -> Tile {
-    match (row % 2 == 0, column % 2 == 0) {
-        // top left
-        (true, true) => Tile {
-            row: row + 1,
-            column,
-        },
-        // top right
-        (true, false) => Tile {
-            row,
-            column: column - 1,
-        },
-        // bottom left
-        (false, true) => Tile {
-            row,
-            column: column + 1,
-        },
-        // bottom right
-        (false, false) => Tile {
-            row: row - 1,
-            column,
-        },
-    }
 }
 
 fn key_pressed(_app: &App, model: &mut Model, key: Key) {
@@ -102,61 +86,43 @@ fn key_pressed(_app: &App, model: &mut Model, key: Key) {
         _ => {}
     }
 
-    if model.recursion_layers < 1 || IMAGE_WIDTH / model.recursion_layers == 1 {
+    if model.recursion_layers < 1 || IMAGE_WIDTH / model.recursion_layers <= 1 {
         model.recursion_layers = 1;
     }
 
-    model.tiles = process_tiles(model.recursion_layers);
+    model.image = process_tiles(&model.image, model.recursion_layers);
 }
 
-fn process_tiles(recursion_layers: u32) -> Vec<(Rect, Vec2)> {
+fn process_tiles(old_image: &Texture, recursion_layers: u32) -> Texture {
     let rows = (2 as u32).pow(recursion_layers - 1);
-    let normalised_tile_width = 1.0 / rows as f32;
-    let tile_width = normalised_tile_width * IMAGE_WIDTH as f32;
+    let tile_width = IMAGE_WIDTH / rows;
 
-    let tiles: Vec<(u32, u32)> = (0..rows)
-        .flat_map(|row| (0..rows).map(move |column| (row, column)))
-        .collect();
-    // Compute all tile data in parallel
-    tiles
-        .par_iter()
-        .map(|&(row, column)| {
-            let source_tile = source_tile(row, column);
-            let area = Rect::from_xy_wh(
-                relative_tile_position(source_tile.row, source_tile.column, tile_width)
-                    / IMAGE_WIDTH as f32,
-                vec2(normalised_tile_width, normalised_tile_width),
-            );
-            let destination_tile = relative_tile_position(row, column, tile_width)
-                + vec2(IMAGE_WIDTH as f32 / -2., IMAGE_WIDTH as f32 / -2.);
-            (area, destination_tile)
-        })
-        .collect()
-}
+    let new_image = RgbaImage::new(IMAGE_WIDTH, IMAGE_WIDTH);
 
-// create image then all i do in view is render it
+    for row in 0..rows {
+        for column in 0..rows {
+            let destination_tile = Tile { row, column };
+            let source_tile = destination_tile.source_tile();
 
-fn swap_image_halves(img: &RgbaImage) -> RgbaImage {
-    let (w, h) = img.dimensions();
-    let half_w = w / 2;
+            let destination_tile_position = destination_tile.center_coords(tile_width).to_i32();
+            let source_tile_position = source_tile.center_coords(tile_width).to_i32();
+            let half_tile_width = (tile_width / 2) as i32;
 
-    let mut swapped = RgbaImage::new(w, h);
-
-    // Copy right half to left
-    for y in 0..h {
-        for x in 0..half_w {
-            let px = img.get_pixel(x + half_w, y);
-            swapped.put_pixel(x, y, *px);
+            for x in -half_tile_width..half_tile_width {
+                for y in -half_tile_width..half_tile_width {
+                    let pixel = old_image.(
+                        (x + source_tile_position[0]) as u32,
+                        (y + source_tile_position[1]) as u32,
+                    );
+                    new_image.put_pixel(
+                        (y + destination_tile_position[0]) as u32,
+                        (y + destination_tile_position[1]) as u32,
+                        pixel,
+                    );
+                }
+            }
         }
     }
 
-    // Copy left half to right
-    for y in 0..h {
-        for x in 0..half_w {
-            let px = img.get_pixel(x, y);
-            swapped.put_pixel(x + half_w, y, *px);
-        }
-    }
-
-    swapped
+    new_image
 }
