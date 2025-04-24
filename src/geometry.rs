@@ -245,10 +245,6 @@ impl PointU32 {
     pub fn new(x: u32, y: u32) -> Self {
         PointU32 { x, y }
     }
-
-    pub fn to_i32(&self) -> [i32; 2] {
-        [self.x as i32, self.y as i32]
-    }
 }
 
 impl Add<u32> for PointU32 {
