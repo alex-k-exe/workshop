@@ -1,28 +1,25 @@
-FROM rust:1.86.0-slim-bullseye AS build
+# ---- Build Stage ----
+FROM rust:1.86.0-slim-bullseye AS builder
+WORKDIR /app
 
-# create a new empty shell project
-RUN USER=root cargo new --bin workshop
-WORKDIR /workshop
-
-# copy over your manifests
-COPY ./Cargo.lock ./Cargo.toml ./
-
-# this build step will cache your dependencies
+# Cache dependencies
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release
-RUN rm src/*.rs
+RUN rm -rf src
 
-# copy your source tree
-COPY ./src ./src
-
-# build for release
-RUN rm ./target/release/deps/workshop*
+# Build actual project
+COPY . .
 RUN cargo build --release
 
-# our final base
-FROM rust:1.49
+# ---- Runtime Stage ----
+FROM debian:bullseye-slim
 
-# copy the build artifact from the build stage
-COPY --from=build /workshop/target/release/workshop .
+# Create a non-root user (optional, for security)
+RUN adduser --disabled-password --gecos "" appuser
 
-# set the startup command to run your binary
+WORKDIR /app
+COPY --from=builder /app/target/release/workshop /app/
+USER appuser
+
 CMD ["./workshop"]

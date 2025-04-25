@@ -6,13 +6,13 @@ use std::ops::{Add, Mul, Sub};
 
 pub const NO_VERTICES_ERROR: &str = "Polygon should have vertices";
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Line {
     pub point1: Point2,
     pub point2: Point2,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum LineIntersection {
     Point(Point2),
     Coincident,
@@ -74,7 +74,7 @@ impl Line {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Direction {
     Above,
     Right,
