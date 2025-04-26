@@ -1,19 +1,15 @@
-use projects::recursive_rotation::Model;
+use projects::severance::four_tempers::{update, Model};
 
 pub mod geometry;
 pub mod projects {
-    pub mod digits_to_zero;
-    pub mod tesselations {
-        pub mod tesselation_editor;
+    pub mod severance {
+        pub mod colors;
+        // pub mod contour_lines;
+        pub mod four_tempers;
+        pub mod recursive_rotation;
     }
-    // pub mod distance_between_points;
-    // pub mod boids;
-    pub mod epicyclogons;
-    pub mod game_of_life;
-    pub mod recursive_rotation;
-    pub mod three_points;
 }
 
 fn main() {
-    nannou::app(Model::new).run();
+    nannou::app(Model::new).update(update).run();
 }

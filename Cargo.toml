@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+delaunator = "1.0.2"
 geo = "0.29.3"
 nannou = "0.19.0"
 nannou_egui = "0.19.0"
+petgraph = "0.8.1"
 rayon = "1.10.0"
 
 [profile.release]
