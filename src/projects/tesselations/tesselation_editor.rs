@@ -22,7 +22,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     draw.background().color(WHITE);
 
     let polygon = model.polygon.clone();
-    let bounding_box = bounding_rect(polygon.points.clone()).expect(NO_VERTICES_ERROR);
+    let bounding_box = bounding_rect(polygon.points.clone()).unwrap();
 
     second_align_thing(
         &window,
@@ -49,7 +49,7 @@ fn align_thing(
     draw.polygon()
         .points(polygon.points.clone())
         .color(if *i % 2 == 0 { LIGHTBLUE } else { LIGHTGREEN });
-    *bounding_box = bounding_rect(polygon.points.clone()).expect(NO_VERTICES_ERROR);
+    *bounding_box = bounding_rect(polygon.points.clone()).unwrap();
     *i = *i + 1;
     polygon.align(alignment_polygon, direction);
 }

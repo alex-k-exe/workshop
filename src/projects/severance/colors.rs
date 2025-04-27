@@ -41,3 +41,10 @@ pub const BROWN: Srgb<u8> = Srgb {
     blue: 90,
     standard: ::core::marker::PhantomData,
 };
+
+pub const SILVER: Srgb<u8> = Srgb {
+    red: 194,
+    green: 203,
+    blue: 203,
+    standard: ::core::marker::PhantomData,
+};

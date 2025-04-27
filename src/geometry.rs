@@ -4,8 +4,6 @@ use geom::{bounding_rect, centroid};
 use nannou::prelude::*;
 use std::ops::{Add, Mul, Sub};
 
-pub const NO_VERTICES_ERROR: &str = "Polygon should have vertices";
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Line {
     pub point1: Point2,
@@ -108,8 +106,8 @@ impl Polygon {
     /** Align self to be above, below, or to the right or left of polygon */
     pub fn align(&mut self, polygon: &Polygon, direction: Direction) {
         let bounding_boxes = [
-            bounding_rect(self.points.clone()).expect(NO_VERTICES_ERROR),
-            bounding_rect(polygon.points.clone()).expect(NO_VERTICES_ERROR),
+            bounding_rect(self.points.clone()).unwrap(),
+            bounding_rect(polygon.points.clone()).unwrap(),
         ];
 
         match direction {
@@ -159,7 +157,7 @@ impl Polygon {
 
     /** Rotate clockwise around centroid */
     pub fn rotate(&mut self, angle: f32) {
-        let centre = centroid(self.points.clone()).expect(NO_VERTICES_ERROR);
+        let centre = centroid(self.points.clone()).unwrap();
         self.rotate_around_point(centre, angle);
     }
 
@@ -171,10 +169,7 @@ impl Polygon {
     }
 
     pub fn dilate(&mut self, scale: f32) {
-        self.dilate_from_point(
-            scale,
-            centroid(self.points.clone()).expect(NO_VERTICES_ERROR),
-        );
+        self.dilate_from_point(scale, centroid(self.points.clone()).unwrap());
     }
 
     pub fn dilate_from_point(&mut self, scale: f32, centre: Point2) {

@@ -34,8 +34,8 @@ impl State {
         let next_point_rotating;
 
         let bounding_boxes = [
-            bounding_rect(fixed.points.clone()).expect("Polygon should have points"),
-            bounding_rect(rotating.points.clone()).expect("Polygon should have points"),
+            bounding_rect(fixed.points.clone()).unwrap(),
+            bounding_rect(rotating.points.clone()).unwrap(),
         ];
         if fixed.points.len() % 2 == 0 {
             // if fixed is bigger than rotating
@@ -72,7 +72,7 @@ impl State {
             .points
             .iter()
             .min_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(Ordering::Equal))
-            .expect(NO_VERTICES_ERROR)
+            .unwrap()
             .clone();
 
         State {

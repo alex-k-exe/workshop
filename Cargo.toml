@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 delaunator = "1.0.2"
 geo = "0.29.3"
+itertools = "0.14.0"
 nannou = "0.19.0"
 nannou_egui = "0.19.0"
 petgraph = "0.8.1"
